@@ -1,0 +1,38 @@
+{
+  "name": "netlify-github-status-extension",
+  "version": "0.0.1",
+  "license": "UNLICENSED",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "build": "netlify-extension build",
+    "dev": "netlify-extension dev",
+    "dev:open": "netlify-extension dev --open"
+  },
+  "dependencies": {
+    "@netlify/sdk": "^2.26.3",
+    "@netlify/functions": "^4.1.10",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@trpc/client": "11.0.0-rc.477",
+    "@trpc/server": "11.0.0-rc.477",
+    "@trpc/react-query": "11.0.0-rc.477",
+    "@tanstack/react-query": "^5.62.1",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@netlify/netlify-plugin-netlify-extension": "1.2.2",
+    "typescript": "5.8.3",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@tsconfig/node18": "18.2.4",
+    "@tsconfig/recommended": "1.0.10",
+    "@tsconfig/strictest": "2.0.5",
+    "@tsconfig/vite-react": "7.0.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.19",
+    "autoprefixer": "^10.4.7",
+    "tailwindcss": "^3.4.3",
+    "netlify-cli": "22.2.2"
+  }
+}
