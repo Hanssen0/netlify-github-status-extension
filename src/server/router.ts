@@ -1,36 +1,49 @@
 import { TRPCError } from "@trpc/server";
 import { procedure, router } from "./trpc.js";
-import { teamSettingsSchema } from "../schema/team-configuration.js";
-
-
-const BUILD_EVENT_HANDLER_ENABLED_ENV_VAR = "NETLIFY_GITHUB_STATUS_EXTENSION_ENABLED";
+import {
+  settingsDefaultSchema,
+  settingsSchema,
+} from "../schema/configuration.js";
 
 export const appRouter = router({
-  teamSettings: {
-    query: procedure.query(async ({ ctx: { teamId, client } }) => {
+  settings: {
+    query: procedure.query(async ({ ctx: { teamId, siteId, client } }) => {
       if (!teamId) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "teamId is required",
         });
       }
-      const teamConfig = await client.getTeamConfiguration(teamId);
-      if (!teamConfig) {
-        return;
-      }
-      const result = teamSettingsSchema.safeParse(teamConfig.config);
-      if (!result.success) {
+
+      const teamConfig = settingsSchema.safeParse(
+        (await client.getTeamConfiguration(teamId))?.config ?? {}
+      );
+      const siteConfig = settingsSchema.safeParse(
+        siteId
+          ? (await client.getSiteConfiguration(teamId, siteId))?.config ?? {}
+          : {}
+      );
+      if (!teamConfig.success || !siteConfig.success) {
         console.warn(
-          "Failed to parse team settings",
-          JSON.stringify(result.error, null, 2)
+          "Failed to parse settings",
+          JSON.stringify(teamConfig.error, null, 2),
+          JSON.stringify(siteConfig.error, null, 2)
         );
       }
-      return result.data;
+
+      const defaultConfig = settingsDefaultSchema.safeParse(
+        teamConfig.data ?? {}
+      );
+
+      return {
+        config: (siteId ? siteConfig.data : undefined) ?? teamConfig.data ?? {},
+        default: defaultConfig.data!,
+      };
     }),
 
     mutate: procedure
-      .input(teamSettingsSchema)
-      .mutation(async ({ ctx: { teamId, client }, input }) => {
+      .input(settingsSchema)
+      .mutation(async ({ ctx: { teamId, siteId, client }, input }) => {
         if (!teamId) {
           throw new TRPCError({
             code: "BAD_REQUEST",
@@ -39,116 +52,27 @@ export const appRouter = router({
         }
 
         try {
-          const existingConfig = await client.getTeamConfiguration(teamId);
+          const existingConfig = await (siteId
+            ? client.getSiteConfiguration(teamId, siteId)
+            : client.getTeamConfiguration(teamId));
+
           if (!existingConfig) {
-            await client.createTeamConfiguration(teamId, input);
+            await (siteId
+              ? client.createSiteConfiguration(teamId, siteId, input)
+              : client.createTeamConfiguration(teamId, input));
           } else {
-            await client.updateTeamConfiguration(teamId, {
-              ...(existingConfig?.config || {}),
-              ...input,
-            });
+            await (siteId
+              ? client.updateSiteConfiguration(teamId, siteId, input)
+              : client.updateTeamConfiguration(teamId, input));
           }
         } catch (e) {
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
-            message: "Failed to save team configuration",
+            message: "Failed to save configuration",
             cause: e,
           });
         }
       }),
-  },
-  buildEventHandler: {
-    status: procedure.query(async ({ ctx: { teamId, siteId, client } }) => {
-      if (!teamId || !siteId) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Both teamId and siteId are required",
-        });
-      }
-      const envVars = await client.getEnvironmentVariables({
-        accountId: teamId,
-        siteId,
-      });
-
-      const enabledVar = envVars
-        .find((val) => val.key === BUILD_EVENT_HANDLER_ENABLED_ENV_VAR)
-        ?.values.find((val) => val.context === "all");
-
-      return {
-        enabled: !!enabledVar,
-      };
-    }),
-    enable: procedure.mutation(async ({ ctx: { teamId, siteId, client } }) => {
-      if (!teamId || !siteId) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Both teamId and siteId are required",
-        });
-      }
-
-      try {
-        await client.createOrUpdateVariable({
-          accountId: teamId,
-          siteId,
-          key: BUILD_EVENT_HANDLER_ENABLED_ENV_VAR,
-          value: "true",
-        });
-
-        console.log(
-          `Build event handler enabled for team ${teamId}, site ${siteId}`
-        );
-
-        return {
-          success: true,
-          message: "Build event handler enabled successfully",
-        };
-      } catch (error) {
-        console.error(
-          `Failed to enable build event handler: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`
-        );
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to enable build event handler",
-          cause: error,
-        });
-      }
-    }),
-    disable: procedure.mutation(async ({ ctx: { teamId, siteId, client } }) => {
-      if (!teamId || !siteId) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "teamId and siteId are required",
-        });
-      }
-
-      try {
-        await client.deleteEnvironmentVariable({
-          accountId: teamId,
-          siteId,
-          key: BUILD_EVENT_HANDLER_ENABLED_ENV_VAR,
-        });
-        console.log(
-          `Build event handler disabled for team ${teamId}, site ${siteId}`
-        );
-        return {
-          success: true,
-          message: "Build event handler disabled successfully",
-        };
-      } catch (error) {
-        console.error(
-          `Failed to disable build event handler for site ${siteId} and team ${teamId}: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`
-        );
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to disable build event handler",
-          cause: error,
-        });
-      }
-    }),
   },
 });
 

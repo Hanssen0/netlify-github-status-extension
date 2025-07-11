@@ -1,10 +1,15 @@
-# Workaround for pnpm-specific phantom dependency issue. Later versions of the Sanity types move
-# this dependency to a peerDependency, which is the recommended way to distribute a library that
-# references React types and does not suffer from this problem.
-#
-# This is an internal SDK dependency and will have no impact on extensions builds, so it's safe to
-# remove this dependency.
-#
-# https://github.com/pnpm/pnpm/issues/7158
 overrides:
-  "@sanity/types@2>@types/react": "-"
+  '@sanity/types@2>@types/react': '-'
+
+onlyBuiltDependencies:
+  - '@netlify/content-engine'
+  - '@parcel/watcher'
+  - content-engine
+  - contentful
+  - es5-ext
+  - esbuild
+  - lmdb
+  - msgpackr-extract
+  - netlify-cli
+  - sharp
+  - unix-dgram
