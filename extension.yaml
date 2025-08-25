@@ -3,6 +3,7 @@ config:
   slug: netlify-github-status-extension
   name: netlify-github-status-extension
   scopes:
+    deploy: ["read"]
     site: ["read", "write"]
     ui: ["read", "write"]
 

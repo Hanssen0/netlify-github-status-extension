@@ -1,7 +1,8 @@
 // Documentation: https://sdk.netlify.com/docs
-import { NetlifyExtension } from "@netlify/sdk";
+import { NetlifyExtension, NetlifyExtensionClient } from "@netlify/sdk";
 import * as crypto from "crypto";
 import * as jwt from "jsonwebtoken";
+import snakify from "snakify-ts";
 import {
   settingsDefaultSchema,
   settingsSchema,
@@ -52,7 +53,18 @@ const handler: Parameters<
     console.error("Could not determine DEPLOY_ID from environment variables.");
     return;
   }
-  const body = JSON.stringify({ id: deployId });
+
+  const body = JSON.stringify(
+    snakify(
+      await (
+        (client as any).client as NetlifyExtensionClient<
+          unknown,
+          unknown,
+          unknown
+        >
+      ).getDeploy(deployId)
+    )
+  );
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
